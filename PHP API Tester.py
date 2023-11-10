@@ -9,6 +9,7 @@ screenHeight = 720
 table = ttk.Treeview(root)
 scrollbar = ttk.Scrollbar(root, orient="vertical", command=table.yview)
 table.configure(yscrollcommand=scrollbar.set)
+data = []
 
 #Set application title and sixe
 root.title("Validation GUI")
@@ -26,9 +27,16 @@ exitUploadsBtn = tk.Button(root, text='Main Menu', command=lambda:exit_upload(),
 
 #Set test interface buttons
 exitTestBtn = tk.Button(root, text='Main Menu', command=lambda:exit_test(), height=2, width=11)
+#Set inputs and labels
+inputURL = tk.Entry(root)
+inputPost = tk.Entry(root)
+labelURL = tk.Label(root, text='URL')
+labelPost = tk.Label(root, text='Post Data')
 
 #Set buttons for settings menu
 exitSettingsBtn = tk.Button(root, text='Main Menu', command=lambda:exit_settings(), height=2, width=11)
+submitTestInputBtn = tk.Button(root, text='Submit', height=1, width=11)
+
 
 #Function is called to create the main menu
 def create_main_menu():
@@ -65,24 +73,29 @@ def exit_test():
     table.place_forget()
     scrollbar.place_forget()
     exitTestBtn.place_forget()
+    submitTestInputBtn.place_forget()
+    inputURL.place_forget()
+    labelURL.place_forget()
+    inputPost.place_forget()
+    labelPost.place_forget()
     create_main_menu()
 
 #Function is called to navigate to the test interface
 def start_test():
     clear_main_menu()
     #Define the columns
-    table["columns"] = ("ID","URL","Test Data")
+    table["columns"] = ("ID","URL","Post Data")
     #Hidden index column
     table.column("#0", width=0, stretch=tk.NO)
     #Table columns
     table.column("ID", anchor=tk.W, width=int((screenWidth/16)*1.7))
     table.column("URL", anchor=tk.W, width=int((screenWidth/16)*7))
-    table.column("Test Data", anchor=tk.W, width=int((screenWidth/16)*7))
+    table.column("Post Data", anchor=tk.W, width=int((screenWidth/16)*7))
     #Table headings
     table.heading("#0", text="", anchor=tk.W)
     table.heading("ID", text="ID", anchor=tk.W)
     table.heading("URL", text="URL", anchor=tk.W)
-    table.heading("Test Data", text="Test Data", anchor=tk.W)
+    table.heading("Post Data", text="Post Data", anchor=tk.W)
     #Insert records
     #table.insert("", 0, values=(i, "localhost/moodle/user/login.index.php", 22))
     #Place the table and scroll bar
@@ -90,6 +103,12 @@ def start_test():
     scrollbar.place(x=int((screenWidth/16)*15.7), y=0, width=30, height=225)
     #Place Main Menu button
     exitTestBtn.place(x=0, y=screenHeight-40)
+    #Place input boxes, labels and submit button
+    inputURL.place(x=int((screenWidth/2)-500),y=265, width=500, height=20)
+    labelURL.place(x=int((screenWidth/2)-500), y=240)
+    inputPost.place(x=int(screenWidth/2), y=265, width=500)
+    labelPost.place(x=int(screenWidth/2), y=240)
+    submitTestInputBtn.place(x=int((screenWidth/2)+500), y=260)
 
 def exit_settings():
     exitSettingsBtn.place_forget()
