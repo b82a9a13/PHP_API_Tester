@@ -11,6 +11,7 @@ firstTable = False
 scrollbarV = ttk.Scrollbar(root, orient="vertical", command=table.yview)
 table.configure(yscrollcommand=scrollbarV.set)
 data = []
+currentData = []
 recordNum = 1
 cookie = ''
 inputError = tk.Label(root, text='', fg='red')
@@ -20,7 +21,9 @@ inputWidth = 50
 btnWidth = 11
 btnHeight = 2
 #Variable stores all the options for parameters
-options = ['integer','A-Z','a-z','float','date','base64-image','custom']
+options = ['1) integer','2) A-Z','3) a-z','4) float','5) date','6) base64 image','7) encoded HTML']
+#Variable used to temporarily store variable keys
+varArray = [[],[]]
 
 #Set application title and size
 root.title("Validation GUI")
@@ -43,9 +46,21 @@ inputTypes = ['URL', 'Get Variable(s)', 'Post Variable(s)']
 inputArray = []
 for i in inputTypes:
     inputArray.append([tk.Text(root, height=textHeight, width=inputWidth), tk.Label(root, text=i)])
+#Set options for variables
+optDDText = [tk.StringVar(root, "Select a Get Variable"), tk.StringVar(root, "Select a Post Variable")]
+optDropDowns = [ttk.Combobox(root, textvariable=optDDText[0], state='readonly'), ttk.Combobox(root, textvariable=optDDText[1], state='readonly')]
+optCheckBoxes = [[],[]]
+optCheckBoxesVar = [[],[]]
+for i in options:
+    for y in range(2):
+        optCheckBoxesVar[y].append(tk.IntVar())
+        optCheckBoxes[y].append(tk.Checkbutton(root, text=i, variable=optCheckBoxesVar[y][-1]))
+optCheckSub = [tk.Button(root, text='Submit Selection', height=1, width=int(btnWidth*1.2)), tk.Button(root, text='Submit Selection', height=1, width=int(btnWidth*1.2))]
+optCheckError = tk.Label(root, text='No option selected.', fg='red')
+optCheckSuccess = tk.Label(root, text='Success', fg='green')
 
 #Set buttons for settings menu
-submitTestInputBtn = tk.Button(root, text='Submit', height=1, width=btnWidth)
+submitTestInputBtn = tk.Button(root, text='Validate', height=1, width=btnWidth)
 cookieBtn = tk.Button(root, text='Submit', height=btnHeight, width=btnWidth)
 #Set input and label for setting menu
 inputCookie = tk.Text(root, height=textHeight, width=100)
@@ -100,6 +115,17 @@ def start_test():
             i[1].place_forget()
         inputError.place_forget()
         inputSuccess.place_forget()
+        for i in range(len(optCheckBoxes[0])):
+            for y in range(2):
+                optCheckBoxesVar[y][i].set(0)
+                optCheckBoxes[y][i].place_forget()
+        i = 1
+        for i in range(3):
+            optDropDowns[i-1].place_forget()
+        for i in optCheckSub:
+            i.place_forget()
+        optCheckError.place_forget()
+        optCheckSuccess.place_forget()
         create_main_menu()
     #Only generate the table if it hasn't been done already
     if firstTable == False:
@@ -124,45 +150,141 @@ def start_test():
     #Place the table and scroll bar
     table.place(x=0,y=0)
     scrollbarV.place(x=int((screenWidth/16)*15.7), y=0, width=30, height=225)
+    #Function is called to get the x position for a speicified position
+    def xPos(num):
+        return int(((screenWidth/3)*num)+(-15*num)+(-5*(num-1)))
     #Place input boxes, labels and submit button
     num = 0
     for i in inputArray:
-        i[0].place(x=int(((screenWidth/3)*num)+(-15*num)+(-5*(num-1))), y=265)
-        i[1].place(x=int(((screenWidth/3)*num)+(-15*num)+(-5*(num-1))), y=240)
+        i[0].place(x=xPos(num), y=265)
+        i[1].place(x=xPos(num), y=240)
         num += 1
     #   Submit
     submitTestInputBtn.place(x=int(screenWidth*0.9), y=355)
-    submitTestInputBtn.config(command=lambda:sub_test_input())
+    submitTestInputBtn.config(command=lambda:validate_test_input())
+    #Check if input data is stored and if it is, display the relevant options
+    if len(varArray[0]) > 0:
+        optDropDowns[0].place(x=xPos(1), y=375)
+        num = 0
+        for i in range(len(optCheckBoxes[0])):
+            optCheckBoxes[0][i].place(x=xPos(1), y=400+(25*num))
+            num += 1
+    if len(varArray[1]) > 0:
+        optDropDowns[1].place(x=xPos(2), y=375)
+        num = 0
+        for i in range(len(optCheckBoxes[1])):
+            optCheckBoxes[1][i].place(x=xPos(2), y=400+(25*num))
+            num += 1
+    #Function is called when the dropdown value is changed
+    def changed_drop_down(num):
+        i = 0
+        for i in range(len(optCheckBoxesVar[num])):
+            optCheckBoxesVar[num][i].set(0)
+        #Add in code to check if options have been submitted as a selection previously
+    #Function is called to validate the the selected options for a variable, and if it passes submit it
+    def sub_selection(num):
+        optCheckError.place_forget()
+        optCheckSuccess.place_forget()
+        optChosen = []
+        i = 0
+        for i in range(len(optCheckBoxesVar[num])):
+            if optCheckBoxesVar[num][i].get() == 1:
+                optChosen.append(i)
+        if len(optChosen) == 0:
+            optCheckError.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
+        elif len(optChosen) >= 1:
+            #Add in the saving of the options for a variable
+            optCheckSuccess.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
     #Function is called to validate the user input
-    def sub_test_input():
-        global recordNum
-        global data
+    def validate_test_input():
+        global currentData
+        global varArray
+        #Reset the options section to default layout
         inputSuccess.place_forget()
         inputError.place_forget()
+        for i in optCheckSub:
+            i.place_forget()
+        for i in range(len(optCheckBoxes[0])):
+            for y in range(2):
+                optCheckBoxesVar[y][i].set(0)
+                optCheckBoxes[y][i].place_forget()
+        i = 1
+        for i in range(3):
+            optDropDowns[i-1].place_forget()
+        #Store user input into variables
         url = inputArray[0][0].get("1.0","end")
         getT = inputArray[1][0].get("1.0","end")
         post = inputArray[2][0].get("1.0","end")
         errorText = ''
         #Validate url
-        if (url.count('.') >= 2 and url.count('http') == 1 and url.count('://') == 1 and url.count('\n') == 1) == False:
-            errorText += 'Invalid Url Provided, the format should be http://www.site.com. '
+        if (url.count('.') >= 2 and url.count('http') == 1 and url.count('://') == 1) == False:
+            errorText += "Invalid Url Provided, the format should be http://www.site.com. "
         #Validate get
-        if (getT.count('\n') == 1 and getT.count('=') == 0 or (getT.count('\n') == 1 and getT.count('=') >= 1 and getT.count('=') == (getT.count('&')+1))) == False:
-            errorText += 'Invalid Get Provided, the format should be name=&nametwo=. '
+        if (getT.count('=') == 0 or (getT.count('=') >= 1 and getT.count('=') == (getT.count('&')+1))) == False:
+            errorText += "Invalid Get Provided, the format should be name=&nametwo=. "
         #Validate post
-        if (post.count('=') == 1 and post.count('&') == 0 and post.count('\n') == 1 or (post.count('=') >= 2 and post.count('&') >= 1 and post.count('=') == (post.count('&')+1) and post.count('\n') == 1)) == False:
-            errorText += 'Invalid Post Provided, the format should be name=&nametwo=. '
+        if (post.count('=') == 1 and post.count('&') == 0 or (post.count('=') >= 2 and post.count('&') >= 1 and post.count('=') == (post.count('&')+1))) == False:
+            errorText += "Invalid Post Provided, the format should be name=&nametwo=. "
         #Save the data if the errorText varaiable is empty, else output an error
         if errorText == '':
-            url = url.replace('\n','')
-            getT = getT.replace('\n','')
-            post = post.replace('\n','')
-            table.insert("", 0, values=(recordNum, url, getT, post))
-            data.append([recordNum, url, getT, post])
-            print(data)
-            recordNum += 1
-            inputSuccess.place(x=int((screenWidth/2)-500), y=350)
-        else:
+            url = url.replace('\n','').replace('\t','').replace('\r','').replace("\'","").replace('\"','').replace('\\','')
+            getT = getT.replace('\n','').replace('\t','').replace('\r','').replace("\'","").replace('\"','').replace('\\','')
+            post = post.replace('\n','').replace('\t','').replace('\r','').replace("\'","").replace('\"','').replace('\\','')
+            if len(getT) == 0 and len(post) == 0:
+                errorText += 'No Post or Get provided. '
+            else:
+                varArray = [[],[]]
+                i = 0
+                #Validate get and post input and place each variable into an array
+                for params in [getT, post]:
+                    if params != '':
+                        #Validate input and place each varaible into an array
+                        if params.count('=') == 1 and params.count('&') == 0:
+                            pair = params.split('=')
+                            if pair[0] == '':
+                                if i == 0:
+                                    errorText += 'No get variable provided. '
+                                elif i == 1:
+                                    errorText += 'No post varaible provided. '
+                            else:
+                                varArray[i].append(pair[0])
+                        elif params.count('=') > 1 and params.count('&') >= 1 and params.count('&') + 1 == params.count('='):
+                            pairs = params.split('&')
+                            for pair in pairs:
+                                key = pair.split('=')[0]
+                                print(key)
+                                if key != '':
+                                    varArray[i].append(key)
+                            if len(varArray[i]) == 0 and i == 0:
+                                errorText += 'No get variables provided. '
+                            if len(varArray[i]) == 0 and i == 1:
+                                errorText += 'No Post variable provided. '
+                    i += 1
+                if errorText == '':
+                    #table.insert("", 0, values=(recordNum, url, getArray, postArray))
+                    #Set drop downs to default and then reset
+                    optDDText[0].set("Select a Get Variable")
+                    optDDText[1].set("Select a Post Variable")
+                    i = 1
+                    for i in range(3):
+                        if len(varArray[i-1]) > 0:
+                            optDropDowns[i-1].config(values=varArray[i-1])
+                            optDropDowns[i-1].place(x=xPos(i), y=375)
+                            optDropDowns[i-1].bind("<<ComboboxSelected>>", lambda event, index=i-1: changed_drop_down(index))
+                            optCheckSub[i-1].place(x=xPos(i), y=400+(25*len(optCheckBoxes[i-1])))
+                            optCheckSub[i-1].config(command=lambda index=i-1:sub_selection(index))
+                    num = 0
+                    #Place check boxes
+                    for i in range(len(optCheckBoxes[0])):
+                        for y in range(2):
+                            if len(varArray[y]) > 0:
+                                optCheckBoxes[y][i].place(x=xPos(y+1), y=400+(25*num))
+                        num += 1
+                    print(varArray)
+                    currentData = [url, varArray[0], varArray[1]]
+                    print(currentData)
+                    inputSuccess.place(x=int((screenWidth/2)-500), y=350)
+        if errorText != '':
             inputError.config(text=errorText)
             inputError.place(x=25, y=350)
 
