@@ -21,18 +21,19 @@ inputWidth = 50
 btnWidth = 11
 btnHeight = 2
 #Variable stores all the options for parameters
-options = ['1) integer','2) A-Z','3) a-z','4) float','5) date','6) base64 image','7) encoded HTML']
+options = ['1) integer','2) A-Z','3) a-z','4) float','5) date','6) base64 image','7) encoded HTML','8) email']
 #Variable used to temporarily store variable keys
 varArray = [[],[]]
+optArray = [[],[]]
 
 #Set application title and size
-root.title("Validation GUI")
+root.title("PHP API Tester")
 root.geometry(f"{screenWidth}x{screenHeight}")
 root.resizable(False, False)
 
 #Set main menu buttons
-uploadsBtn = tk.Button(root, text='Upload file(s)', command=lambda:upload_file(), height=btnHeight, width=btnWidth)
-startBtn = tk.Button(root, text='Start test', command=lambda:start_test(), height=btnHeight, width=btnWidth)
+uploadsBtn = tk.Button(root, text='Upload File(s)', command=lambda:upload_file(), height=btnHeight, width=btnWidth)
+setupBtn = tk.Button(root, text='Setup Test', command=lambda:setup_test(), height=btnHeight, width=btnWidth)
 exitBtn = tk.Button(root, text='Exit', command=lambda:exit_program(), height=btnHeight, width=btnWidth)
 settingsBtn = tk.Button(root, text='Settings', command=lambda:settings_menu(), height=btnHeight, width=btnWidth)
 
@@ -56,8 +57,9 @@ for i in options:
         optCheckBoxesVar[y].append(tk.IntVar())
         optCheckBoxes[y].append(tk.Checkbutton(root, text=i, variable=optCheckBoxesVar[y][-1]))
 optCheckSub = [tk.Button(root, text='Submit Selection', height=1, width=int(btnWidth*1.2)), tk.Button(root, text='Submit Selection', height=1, width=int(btnWidth*1.2))]
-optCheckError = tk.Label(root, text='No option selected.', fg='red')
-optCheckSuccess = tk.Label(root, text='Success', fg='green')
+optError = tk.Label(root, text='', fg='red')
+optSuccess = tk.Label(root, text='Success', fg='green')
+optSubmit = tk.Button(root, text='Submit Test', height=1, width=btnWidth)
 
 #Set buttons for settings menu
 submitTestInputBtn = tk.Button(root, text='Validate', height=1, width=btnWidth)
@@ -71,7 +73,7 @@ labelCurrentCookie = tk.Label(root, text='Current Cookie: ', wraplength=800)
 def create_main_menu():
     width = (screenWidth/2)-50
     uploadsBtn.place(x=width,y=int((screenHeight/2)-100))
-    startBtn.place(x=width, y=int((screenHeight/2)-50))
+    setupBtn.place(x=width, y=int((screenHeight/2)-50))
     settingsBtn.place(x=width, y=int(screenHeight/2))
     exitBtn.place(x=width, y=int((screenHeight/2)+50))
 create_main_menu()
@@ -83,7 +85,7 @@ def exit_program():
 #Function is called to clear the main menu
 def clear_main_menu():
     uploadsBtn.place_forget()
-    startBtn.place_forget()
+    setupBtn.place_forget()
     settingsBtn.place_forget()
     exitBtn.place_forget()
 
@@ -98,7 +100,7 @@ def upload_file():
         create_main_menu()
 
 #Function is called to navigate to the test interface
-def start_test():
+def setup_test():
     global firstTable
     clear_main_menu()
     #Place Main Menu button
@@ -124,8 +126,9 @@ def start_test():
             optDropDowns[i-1].place_forget()
         for i in optCheckSub:
             i.place_forget()
-        optCheckError.place_forget()
-        optCheckSuccess.place_forget()
+        optError.place_forget()
+        optSuccess.place_forget()
+        optSubmit.place_forget()
         create_main_menu()
     #Only generate the table if it hasn't been done already
     if firstTable == False:
@@ -162,46 +165,119 @@ def start_test():
     #   Submit
     submitTestInputBtn.place(x=int(screenWidth*0.9), y=355)
     submitTestInputBtn.config(command=lambda:validate_test_input())
+    placedSub = False
     #Check if input data is stored and if it is, display the relevant options
-    if len(varArray[0]) > 0:
-        optDropDowns[0].place(x=xPos(1), y=375)
-        num = 0
-        for i in range(len(optCheckBoxes[0])):
-            optCheckBoxes[0][i].place(x=xPos(1), y=400+(25*num))
-            num += 1
-    if len(varArray[1]) > 0:
-        optDropDowns[1].place(x=xPos(2), y=375)
-        num = 0
-        for i in range(len(optCheckBoxes[1])):
-            optCheckBoxes[1][i].place(x=xPos(2), y=400+(25*num))
-            num += 1
+    for y in range(2):
+        if len(varArray[y]) > 0:
+            optDropDowns[y].place(x=xPos(y+1), y=375)
+            num = 0
+            for i in range(len(optCheckBoxes[y])):
+                optCheckBoxes[y][i].place(x=xPos(y+1), y=400+(25*num))
+                num += 1
+            optCheckSub[y].place(x=xPos(y+1), y=int(400+(25*len(optCheckBoxes[y]))))
+            if optDropDowns[y].get() in varArray[y]:
+                for i in range(len(optCheckBoxesVar[y])):
+                    if (i+1) in optArray[y][varArray[y].index(optDropDowns[y].get())]:
+                        optCheckBoxesVar[y][i].set(1)
+            if placedSub == False:
+                optSubmit.place(x=int(screenWidth*0.9), y=int(400+(25*len(optCheckBoxes[0]))))
+                placedSub = True
     #Function is called when the dropdown value is changed
     def changed_drop_down(num):
+        optError.place_forget()
+        optSuccess.place_forget()
         i = 0
+        #Load saved selection if it exists
         for i in range(len(optCheckBoxesVar[num])):
-            optCheckBoxesVar[num][i].set(0)
-        #Add in code to check if options have been submitted as a selection previously
+            if optDropDowns[num].get() in varArray[num]:
+                if (i+1) in optArray[num][varArray[num].index(optDropDowns[num].get())]:
+                    optCheckBoxesVar[num][i].set(1)
+                else:
+                    optCheckBoxesVar[num][i].set(0)
+            else:
+                optCheckBoxesVar[num][i].set(0)
     #Function is called to validate the the selected options for a variable, and if it passes submit it
     def sub_selection(num):
-        optCheckError.place_forget()
-        optCheckSuccess.place_forget()
+        global optArray
+        optError.place_forget()
+        optSuccess.place_forget()
         optChosen = []
         i = 0
+        #Get the options selected and add them to an array
         for i in range(len(optCheckBoxesVar[num])):
             if optCheckBoxesVar[num][i].get() == 1:
-                optChosen.append(i)
+                optChosen.append(i+1)
         if len(optChosen) == 0:
-            optCheckError.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
+            optError.config(text='No option selected.')
+            optError.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
         elif len(optChosen) >= 1:
-            #Add in the saving of the options for a variable
-            optCheckSuccess.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
+            #Add selected values to an array
+            try:
+                optArray[num][varArray[num].index(optDropDowns[num].get())] = optChosen
+                optSuccess.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
+            except:
+                return
+    #Function is called to submit the current test
+    def validate_current_test():
+        global data
+        global currentData
+        global varArray
+        global optArray
+        global recordNum
+        #Validate the current test
+        optError.place_forget()
+        valid = True
+        for i in optArray:
+            for y in i:
+                if y == []:
+                    valid = False
+        if valid == False:
+            optError.config(text='No options chosen for variable(s)')
+            optError.place(x=int(screenWidth*0.85), y=430+(25*len(optCheckBoxes[0])))
+        elif valid == True:
+            newArray = [[],[]]
+            pos = 0
+            for i in varArray:
+                num = 0
+                for y in i:
+                    newArray[pos].append([y, optArray[pos][num]])
+                    num += 1
+                pos += 1
+            if newArray != []:
+                data.append([currentData[0], newArray])
+                table.insert("", 0, values=(recordNum, data[-1][0], data[-1][1][0], data[-1][1][1]))
+                recordNum += 1
+                varArray = [[],[]]
+                optArray = [[],[]]
+                currentData = []
+                optSuccess.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
+                inputError.place_forget()
+                inputSuccess.place_forget()
+                for i in range(len(optCheckBoxes[0])):
+                    for y in range(2):
+                        optCheckBoxesVar[y][i].set(0)
+                        optCheckBoxes[y][i].place_forget()
+                i = 1
+                for i in range(3):
+                    optDropDowns[i-1].place_forget()
+                for i in optCheckSub:
+                    i.place_forget()
+                optError.place_forget()
+                optSubmit.place_forget()
+            else:
+                optError.config(text='Error creating test.')
+                optError.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
     #Function is called to validate the user input
     def validate_test_input():
         global currentData
         global varArray
+        global optArray
         #Reset the options section to default layout
         inputSuccess.place_forget()
         inputError.place_forget()
+        optSubmit.place_forget()
+        optSuccess.place_forget()
+        optError.place_forget()
         for i in optCheckSub:
             i.place_forget()
         for i in range(len(optCheckBoxes[0])):
@@ -228,11 +304,14 @@ def start_test():
         #Save the data if the errorText varaiable is empty, else output an error
         if errorText == '':
             url = url.replace('\n','').replace('\t','').replace('\r','').replace("\'","").replace('\"','').replace('\\','')
+            if url.count('?') >= 1:
+                url = url.split('?')[0]
             getT = getT.replace('\n','').replace('\t','').replace('\r','').replace("\'","").replace('\"','').replace('\\','')
             post = post.replace('\n','').replace('\t','').replace('\r','').replace("\'","").replace('\"','').replace('\\','')
             if len(getT) == 0 and len(post) == 0:
                 errorText += 'No Post or Get provided. '
             else:
+                optArray = [[],[]]
                 varArray = [[],[]]
                 i = 0
                 #Validate get and post input and place each variable into an array
@@ -247,21 +326,23 @@ def start_test():
                                 elif i == 1:
                                     errorText += 'No post varaible provided. '
                             else:
-                                varArray[i].append(pair[0])
+                                if pair[0] not in varArray[i]:
+                                    varArray[i].append(pair[0])
+                                    optArray[i].append([])
                         elif params.count('=') > 1 and params.count('&') >= 1 and params.count('&') + 1 == params.count('='):
                             pairs = params.split('&')
                             for pair in pairs:
                                 key = pair.split('=')[0]
-                                print(key)
                                 if key != '':
-                                    varArray[i].append(key)
+                                    if key not in varArray[i]:
+                                        varArray[i].append(key)
+                                        optArray[i].append([])
                             if len(varArray[i]) == 0 and i == 0:
                                 errorText += 'No get variables provided. '
                             if len(varArray[i]) == 0 and i == 1:
                                 errorText += 'No Post variable provided. '
                     i += 1
                 if errorText == '':
-                    #table.insert("", 0, values=(recordNum, url, getArray, postArray))
                     #Set drop downs to default and then reset
                     optDDText[0].set("Select a Get Variable")
                     optDDText[1].set("Select a Post Variable")
@@ -280,10 +361,10 @@ def start_test():
                             if len(varArray[y]) > 0:
                                 optCheckBoxes[y][i].place(x=xPos(y+1), y=400+(25*num))
                         num += 1
-                    print(varArray)
                     currentData = [url, varArray[0], varArray[1]]
-                    print(currentData)
                     inputSuccess.place(x=int((screenWidth/2)-500), y=350)
+                    optSubmit.place(x=int(screenWidth*0.9), y=int(400+(25*len(optCheckBoxes[0]))))
+                    optSubmit.config(command=lambda:validate_current_test())
         if errorText != '':
             inputError.config(text=errorText)
             inputError.place(x=25, y=350)
