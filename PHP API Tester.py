@@ -1,6 +1,7 @@
 #import dependencies
 import tkinter as tk
 from tkinter import ttk
+import urllib.request
 
 #set global variables
 root = tk.Tk()
@@ -12,6 +13,7 @@ scrollbarV = ttk.Scrollbar(root, orient="vertical", command=table.yview)
 table.configure(yscrollcommand=scrollbarV.set)
 data = []
 currentData = []
+results = []
 recordNum = 1
 cookie = ''
 inputError = tk.Label(root, text='', fg='red')
@@ -60,6 +62,9 @@ optCheckSub = [tk.Button(root, text='Submit Selection', height=1, width=int(btnW
 optError = tk.Label(root, text='', fg='red')
 optSuccess = tk.Label(root, text='Success', fg='green')
 optSubmit = tk.Button(root, text='Submit Test', height=1, width=btnWidth)
+startSubmit = tk.Button(root, text='Start Test', height=btnHeight, width=btnWidth)
+startError = tk.Label(root, text='', fg='red')
+startSuccess = tk.Label(root, text='Test Started', fg='green')
 
 #Set buttons for settings menu
 submitTestInputBtn = tk.Button(root, text='Validate', height=1, width=btnWidth)
@@ -106,6 +111,14 @@ def setup_test():
     #Place Main Menu button
     exitSubBtn.config(command=lambda:exit_test())
     exitSubBtn.place(x=0, y=screenHeight-40)
+    #Function is called to remove error and success labels
+    def remove_temp_labels():
+        optSuccess.place_forget()
+        optError.place_forget()
+        startError.place_forget()
+        startSuccess.place_forget()
+        inputError.place_forget()
+        inputSuccess.place_forget()
     #Function is called to exit the test interface and return to the main menu
     def exit_test():
         table.place_forget()
@@ -115,8 +128,6 @@ def setup_test():
         for i in inputArray:
             i[0].place_forget()
             i[1].place_forget()
-        inputError.place_forget()
-        inputSuccess.place_forget()
         for i in range(len(optCheckBoxes[0])):
             for y in range(2):
                 optCheckBoxesVar[y][i].set(0)
@@ -126,9 +137,9 @@ def setup_test():
             optDropDowns[i-1].place_forget()
         for i in optCheckSub:
             i.place_forget()
-        optError.place_forget()
-        optSuccess.place_forget()
         optSubmit.place_forget()
+        startSubmit.place_forget()
+        remove_temp_labels()
         create_main_menu()
     #Only generate the table if it hasn't been done already
     if firstTable == False:
@@ -166,6 +177,8 @@ def setup_test():
     submitTestInputBtn.place(x=int(screenWidth*0.9), y=355)
     submitTestInputBtn.config(command=lambda:validate_test_input())
     placedSub = False
+    startSubmit.place(x=int(screenWidth*0.935), y=screenHeight-40)
+    startSubmit.config(command=lambda:start_test())
     #Check if input data is stored and if it is, display the relevant options
     for y in range(2):
         if len(varArray[y]) > 0:
@@ -182,10 +195,81 @@ def setup_test():
             if placedSub == False:
                 optSubmit.place(x=int(screenWidth*0.9), y=int(400+(25*len(optCheckBoxes[0]))))
                 placedSub = True
+    #Function is called to start the test
+    def start_test():
+        global results
+        remove_temp_labels()
+        #Check if data is avaiable for the test, if not display an error else proceed
+        if data == []:
+            startError.config(text='No test data available.')
+            startError.place(x=int(screenWidth*0.9), y=screenHeight-60)
+        elif data != []:
+            startSuccess.place(x=int(screenWidth*0.94), y=screenHeight-60)
+            #Send requests and store the results
+            results = []
+            for i in range(len(data)):
+                tempResult = [data[i][0],[],[]]
+                #Create requests for each variable and each option and put the get and post in seperate arrays
+                maxLength = 0
+                requestData = [[],[]]
+                b = 1
+                while b < 3:
+                    for y in data[i][b]:
+                        tmpData = []
+                        for x in y[1]:
+                            if x == 1:
+                                tmpData.append(y[0]+'=0123456789')
+                            elif x == 2:
+                                tmpData.append(y[0]+'=ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+                            elif x == 3:
+                                tmpData.append(y[0]+'=abcdefghijklmnopqrstuvwxyz')
+                            elif x == 4:
+                                tmpData.append(y[0]+'=1%2E1')
+                            elif x == 5:
+                                tmpData.append(y[0]+'=2022%2D01%2D02')
+                            elif x == 6:
+                                tmpData.append(y[0]+'=data%3Aimage%2Fpng%3Bbase64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYSURBVChTY%2Fz%2F%2Fz8DbsAEpXGAkSnNwAAApeMDEUEua14AAAAASUVORK5CYII%3D')
+                            elif x == 7:
+                                tmpData.append(y[0]+'=%26lt%3Bscript%26gt%3B%26lt%3B%2Fscript%26gt%3B')
+                            elif x == 8:
+                                tmpData.append(y[0]+'=email%40email%2Ecom')
+                        maxLength = max(maxLength, len(tmpData))
+                        requestData[b-1].append(tmpData)
+                    b += 1
+                #Send the requests and add the results to the results array
+                for y in range(maxLength):
+                    getRequest = ''
+                    for x in requestData[0]:
+                        getRequest += x[y%len(x)]+'&'
+                    if len(getRequest) > 0:
+                        if getRequest[-1] == '&':
+                            getRequest = getRequest[:-1]
+                    postRequest = ''
+                    for x in requestData[1]:
+                        postRequest += x[y%len(x)]+'&'
+                    if len(postRequest) > 0:
+                        if postRequest[-1] == '&':
+                            postRequest = postRequest[:-1]
+                    #Create the request
+                    requestUrl = data[i][0]
+                    if len(getRequest) > 0:
+                        requestUrl += '?'+getRequest
+                    request = urllib.request.Request(requestUrl, data=postRequest.encode('utf-8'))
+                    if cookie != '':
+                        request.add_header('Cookie', cookie)
+                    #Try to send the request and catch any errors
+                    try:
+                        #Send the response
+                        with urllib.request.urlopen(request) as response:
+                            print('Response content:')
+                            print(response.read().decode('utf-8'))
+                    except Exception as e:
+                        print(f"An error occured: {e}")
+                results.append(tempResult)
+            print(results)
     #Function is called when the dropdown value is changed
     def changed_drop_down(num):
-        optError.place_forget()
-        optSuccess.place_forget()
+        remove_temp_labels()
         i = 0
         #Load saved selection if it exists
         for i in range(len(optCheckBoxesVar[num])):
@@ -199,8 +283,7 @@ def setup_test():
     #Function is called to validate the the selected options for a variable, and if it passes submit it
     def sub_selection(num):
         global optArray
-        optError.place_forget()
-        optSuccess.place_forget()
+        remove_temp_labels()
         optChosen = []
         i = 0
         #Get the options selected and add them to an array
@@ -224,8 +307,9 @@ def setup_test():
         global varArray
         global optArray
         global recordNum
+        remove_temp_labels()
         #Validate the current test
-        optError.place_forget()
+        #Check if all variables have a option chosen and if not display an error message
         valid = True
         for i in optArray:
             for y in i:
@@ -235,8 +319,10 @@ def setup_test():
             optError.config(text='No options chosen for variable(s)')
             optError.place(x=int(screenWidth*0.85), y=430+(25*len(optCheckBoxes[0])))
         elif valid == True:
+            #proceed to saving the options chosen for each variable, then add them to the table and an array
             newArray = [[],[]]
             pos = 0
+            #Add options to an array
             for i in varArray:
                 num = 0
                 for y in i:
@@ -244,15 +330,17 @@ def setup_test():
                     num += 1
                 pos += 1
             if newArray != []:
-                data.append([currentData[0], newArray])
-                table.insert("", 0, values=(recordNum, data[-1][0], data[-1][1][0], data[-1][1][1]))
+                #Add data to the table
+                data.append([currentData[0], newArray[0], newArray[1]])
+                table.insert("", 0, values=(recordNum, data[-1][0], data[-1][1], data[-1][2]))
                 recordNum += 1
+                #Set the varArray and optArray to default values
                 varArray = [[],[]]
                 optArray = [[],[]]
                 currentData = []
-                optSuccess.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
                 inputError.place_forget()
                 inputSuccess.place_forget()
+                #Reset check boxes to default
                 for i in range(len(optCheckBoxes[0])):
                     for y in range(2):
                         optCheckBoxesVar[y][i].set(0)
@@ -264,7 +352,10 @@ def setup_test():
                     i.place_forget()
                 optError.place_forget()
                 optSubmit.place_forget()
+                #Display success text
+                optSuccess.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
             else:
+                #Display error text
                 optError.config(text='Error creating test.')
                 optError.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
     #Function is called to validate the user input
@@ -273,11 +364,8 @@ def setup_test():
         global varArray
         global optArray
         #Reset the options section to default layout
-        inputSuccess.place_forget()
-        inputError.place_forget()
+        remove_temp_labels()
         optSubmit.place_forget()
-        optSuccess.place_forget()
-        optError.place_forget()
         for i in optCheckSub:
             i.place_forget()
         for i in range(len(optCheckBoxes[0])):
