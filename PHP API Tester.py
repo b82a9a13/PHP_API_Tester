@@ -59,12 +59,8 @@ for i in options:
         optCheckBoxesVar[y].append(tk.IntVar())
         optCheckBoxes[y].append(tk.Checkbutton(root, text=i, variable=optCheckBoxesVar[y][-1]))
 optCheckSub = [tk.Button(root, text='Submit Selection', height=1, width=int(btnWidth*1.2)), tk.Button(root, text='Submit Selection', height=1, width=int(btnWidth*1.2))]
-optError = tk.Label(root, text='', fg='red')
-optSuccess = tk.Label(root, text='Success', fg='green')
 optSubmit = tk.Button(root, text='Submit Test', height=1, width=btnWidth)
 startSubmit = tk.Button(root, text='Start Test', height=btnHeight, width=btnWidth)
-startError = tk.Label(root, text='', fg='red')
-startSuccess = tk.Label(root, text='Test Started', fg='green')
 
 #Set buttons for settings menu
 submitTestInputBtn = tk.Button(root, text='Validate', height=1, width=btnWidth)
@@ -113,10 +109,6 @@ def setup_test():
     exitSubBtn.place(x=0, y=screenHeight-40)
     #Function is called to remove error and success labels
     def remove_temp_labels():
-        optSuccess.place_forget()
-        optError.place_forget()
-        startError.place_forget()
-        startSuccess.place_forget()
         inputError.place_forget()
         inputSuccess.place_forget()
     #Function is called to exit the test interface and return to the main menu
@@ -201,14 +193,15 @@ def setup_test():
         remove_temp_labels()
         #Check if data is avaiable for the test, if not display an error else proceed
         if data == []:
-            startError.config(text='No test data available.')
-            startError.place(x=int(screenWidth*0.9), y=screenHeight-60)
+            inputError.config(text='No test data available.')
+            inputSuccess.place(x=int(screenWidth*0.9), y=screenHeight-60)
         elif data != []:
-            startSuccess.place(x=int(screenWidth*0.94), y=screenHeight-60)
+            inputSuccess.config(text='Test Started')
+            inputSuccess.place(x=int(screenWidth*0.94), y=screenHeight-60)
             #Send requests and store the results
             results = []
             for i in range(len(data)):
-                tempResult = [data[i][0],[],[]]
+                tempResult = [data[i][0],[]]
                 #Create requests for each variable and each option and put the get and post in seperate arrays
                 maxLength = 0
                 requestData = [[],[]]
@@ -218,35 +211,41 @@ def setup_test():
                         tmpData = []
                         for x in y[1]:
                             if x == 1:
-                                tmpData.append(y[0]+'=0123456789')
+                                tmpData.append([x, y[0]+'=0123456789'])
                             elif x == 2:
-                                tmpData.append(y[0]+'=ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+                                tmpData.append([x, y[0]+'=ABCDEFGHIJKLMNOPQRSTUVWXYZ'])
                             elif x == 3:
-                                tmpData.append(y[0]+'=abcdefghijklmnopqrstuvwxyz')
+                                tmpData.append([x, y[0]+'=abcdefghijklmnopqrstuvwxyz'])
                             elif x == 4:
-                                tmpData.append(y[0]+'=1%2E1')
+                                tmpData.append([x, y[0]+'=1%2E1'])
                             elif x == 5:
-                                tmpData.append(y[0]+'=2022%2D01%2D02')
+                                tmpData.append([x, y[0]+'=2022%2D01%2D02'])
                             elif x == 6:
-                                tmpData.append(y[0]+'=data%3Aimage%2Fpng%3Bbase64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYSURBVChTY%2Fz%2F%2Fz8DbsAEpXGAkSnNwAAApeMDEUEua14AAAAASUVORK5CYII%3D')
+                                tmpData.append([x, y[0]+'=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYSURBVChTY%2Fz%2F%2Fz8DbsAEpXGAkSnNwAAApeMDEUEua14AAAAASUVORK5CYII%3D'])
                             elif x == 7:
-                                tmpData.append(y[0]+'=%26lt%3Bscript%26gt%3B%26lt%3B%2Fscript%26gt%3B')
+                                tmpData.append([x, y[0]+'=%26lt%3Bscript%26gt%3B%26lt%3B%2Fscript%26gt%3B'])
                             elif x == 8:
-                                tmpData.append(y[0]+'=email%40email%2Ecom')
+                                tmpData.append([x, y[0]+'=email%40email%2Ecom'])
                         maxLength = max(maxLength, len(tmpData))
                         requestData[b-1].append(tmpData)
                     b += 1
                 #Send the requests and add the results to the results array
                 for y in range(maxLength):
                     getRequest = ''
+                    getOptions = []
                     for x in requestData[0]:
-                        getRequest += x[y%len(x)]+'&'
+                        getRequest += x[y%len(x)][1]+'&'
+                        if x[y%len(x)][0] not in getOptions:
+                            getOptions.append(x[y%len(x)][0])
                     if len(getRequest) > 0:
                         if getRequest[-1] == '&':
                             getRequest = getRequest[:-1]
                     postRequest = ''
+                    postOptions = []
                     for x in requestData[1]:
-                        postRequest += x[y%len(x)]+'&'
+                        postRequest += x[y%len(x)][1]+'&'
+                        if x[y%len(x)][0] not in postOptions:
+                            postOptions.append(x[y%len(x)][0])
                     if len(postRequest) > 0:
                         if postRequest[-1] == '&':
                             postRequest = postRequest[:-1]
@@ -261,10 +260,18 @@ def setup_test():
                     try:
                         #Send the response
                         with urllib.request.urlopen(request) as response:
-                            print('Response content:')
-                            print(response.read().decode('utf-8'))
+                            #Decode the response and determine if it passes
+                            responseData = response.read().decode('utf-8')
+                            passFail = 'Fail'
+                            #Need change validation to allow the user to input their pass paramaters, current if is temporary
+                            if responseData.find('[') == 0 and responseData.find(']') == len(responseData)-1:
+                                passFail = 'Pass'
+                            tempResult[1].append([[getOptions, getRequest], [postOptions, postRequest], [passFail, responseData]])
                     except Exception as e:
-                        print(f"An error occured: {e}")
+                        #Get the UnicodeError and put it into a string
+                        if str(e).find('UnicodeError: ') != -1:
+                            e = str(e).split('UnicodeError: ')[1].split(')')[0]
+                        tempResult[1].append([[getOptions, getRequest], [postOptions, postRequest], ['Fail', e]])
                 results.append(tempResult)
             print(results)
     #Function is called when the dropdown value is changed
@@ -291,13 +298,14 @@ def setup_test():
             if optCheckBoxesVar[num][i].get() == 1:
                 optChosen.append(i+1)
         if len(optChosen) == 0:
-            optError.config(text='No option selected.')
-            optError.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
+            inputError.config(text='No option selected.')
+            inputError.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
         elif len(optChosen) >= 1:
             #Add selected values to an array
             try:
                 optArray[num][varArray[num].index(optDropDowns[num].get())] = optChosen
-                optSuccess.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
+                inputSuccess.config(text='Success')
+                inputSuccess.place(x=xPos(num+1), y=430+(25*len(optCheckBoxes[num])))
             except:
                 return
     #Function is called to submit the current test
@@ -316,8 +324,8 @@ def setup_test():
                 if y == []:
                     valid = False
         if valid == False:
-            optError.config(text='No options chosen for variable(s)')
-            optError.place(x=int(screenWidth*0.85), y=430+(25*len(optCheckBoxes[0])))
+            inputError.config(text='No options chosen for variable(s)')
+            inputError.place(x=int(screenWidth*0.85), y=430+(25*len(optCheckBoxes[0])))
         elif valid == True:
             #proceed to saving the options chosen for each variable, then add them to the table and an array
             newArray = [[],[]]
@@ -338,8 +346,6 @@ def setup_test():
                 varArray = [[],[]]
                 optArray = [[],[]]
                 currentData = []
-                inputError.place_forget()
-                inputSuccess.place_forget()
                 #Reset check boxes to default
                 for i in range(len(optCheckBoxes[0])):
                     for y in range(2):
@@ -350,14 +356,14 @@ def setup_test():
                     optDropDowns[i-1].place_forget()
                 for i in optCheckSub:
                     i.place_forget()
-                optError.place_forget()
                 optSubmit.place_forget()
                 #Display success text
-                optSuccess.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
+                inputSuccess.config(text='Success')
+                inputSuccess.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
             else:
                 #Display error text
-                optError.config(text='Error creating test.')
-                optError.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
+                inputError.config(text='Error creating test.')
+                inputError.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
     #Function is called to validate the user input
     def validate_test_input():
         global currentData
@@ -450,6 +456,7 @@ def setup_test():
                                 optCheckBoxes[y][i].place(x=xPos(y+1), y=400+(25*num))
                         num += 1
                     currentData = [url, varArray[0], varArray[1]]
+                    inputSuccess.config(text='Success')
                     inputSuccess.place(x=int((screenWidth/2)-500), y=350)
                     optSubmit.place(x=int(screenWidth*0.9), y=int(400+(25*len(optCheckBoxes[0]))))
                     optSubmit.config(command=lambda:validate_current_test())
@@ -492,6 +499,7 @@ def settings_menu():
             errorText += 'Missing the character ;'
         if errorText == '':
             cookie = cookieInp.replace('\n','')
+            inputSuccess.config(text='Success')
             inputSuccess.place(x=int((screenWidth/2)+45), y=int((screenHeight/4)+95))
             labelCurrentCookie.config(text="Current Cookie: "+cookie)
         elif errorText != '':
