@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import ttk
 import urllib.request
+from random import randint
 
 #set global variables
 root = tk.Tk()
@@ -107,6 +108,18 @@ def setup_test():
     #Place Main Menu button
     exitSubBtn.config(command=lambda:exit_test())
     exitSubBtn.place(x=0, y=screenHeight-40)
+    #Function is called to remove variable option selection and set the checkboxes to the default value
+    def remove_var_options():
+        optSubmit.place_forget()
+        for i in optCheckSub:
+            i.place_forget()
+        for i in range(len(optCheckBoxes[0])):
+            for y in range(2):
+                optCheckBoxesVar[y][i].set(0)
+                optCheckBoxes[y][i].place_forget()
+        i = 1
+        for i in range(3):
+            optDropDowns[i-1].place_forget()
     #Function is called to remove error and success labels
     def remove_temp_labels():
         inputError.place_forget()
@@ -120,15 +133,7 @@ def setup_test():
         for i in inputArray:
             i[0].place_forget()
             i[1].place_forget()
-        for i in range(len(optCheckBoxes[0])):
-            for y in range(2):
-                optCheckBoxesVar[y][i].set(0)
-                optCheckBoxes[y][i].place_forget()
-        i = 1
-        for i in range(3):
-            optDropDowns[i-1].place_forget()
-        for i in optCheckSub:
-            i.place_forget()
+        remove_var_options()
         optSubmit.place_forget()
         startSubmit.place_forget()
         remove_temp_labels()
@@ -212,10 +217,18 @@ def setup_test():
                         for x in y[1]:
                             if x == 1:
                                 tmpData.append([x, y[0]+'=0123456789'])
+                                j = 0
+                                while j < 10:
+                                    tmpData.append([x, y[0]+'='+str(j)])
+                                    j += 1
                             elif x == 2:
                                 tmpData.append([x, y[0]+'=ABCDEFGHIJKLMNOPQRSTUVWXYZ'])
+                                for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                                    tmpData.append([x, y[0]+'='+letter])
                             elif x == 3:
                                 tmpData.append([x, y[0]+'=abcdefghijklmnopqrstuvwxyz'])
+                                for letter in 'abcdefghijklmnopqrstuvwxyz':
+                                    tmpData.append([x, y[0]+'='+letter])
                             elif x == 4:
                                 tmpData.append([x, y[0]+'=1%2E1'])
                             elif x == 5:
@@ -231,6 +244,7 @@ def setup_test():
                     b += 1
                 #Send the requests and add the results to the results array
                 for y in range(maxLength):
+                    #Get the get requests and options and add it to a string and array
                     getRequest = ''
                     getOptions = []
                     for x in requestData[0]:
@@ -240,6 +254,7 @@ def setup_test():
                     if len(getRequest) > 0:
                         if getRequest[-1] == '&':
                             getRequest = getRequest[:-1]
+                    #Get the post requests and options and add it to a string and array 
                     postRequest = ''
                     postOptions = []
                     for x in requestData[1]:
@@ -264,13 +279,19 @@ def setup_test():
                             responseData = response.read().decode('utf-8')
                             passFail = 'Fail'
                             #Need change validation to allow the user to input their pass paramaters, current if is temporary
-                            if responseData.find('[') == 0 and responseData.find(']') == len(responseData)-1:
+                            if responseData.find('[') == 0 and responseData.rfind(']') == len(responseData)-1 or responseData.find('No search results') != -1:
                                 passFail = 'Pass'
                             tempResult[1].append([[getOptions, getRequest], [postOptions, postRequest], [passFail, responseData]])
                     except Exception as e:
-                        #Get the UnicodeError and put it into a string
+                        #Check for UnicodeError and put it into a string
                         if str(e).find('UnicodeError: ') != -1:
                             e = str(e).split('UnicodeError: ')[1].split(')')[0]
+                        #Check for URLError and put it into a string
+                        if str(e).find('>') != -1 and str(e).find('] ') != -1:
+                            e = str(e).split('] ')[1].split('>')[0]
+                        #Get for HTTP Error and put it into a string
+                        if str(e).find('HTTP Error ') != -1:
+                            e = str(e).split(": ")[1]
                         tempResult[1].append([[getOptions, getRequest], [postOptions, postRequest], ['Fail', e]])
                 results.append(tempResult)
             print(results)
@@ -347,16 +368,7 @@ def setup_test():
                 optArray = [[],[]]
                 currentData = []
                 #Reset check boxes to default
-                for i in range(len(optCheckBoxes[0])):
-                    for y in range(2):
-                        optCheckBoxesVar[y][i].set(0)
-                        optCheckBoxes[y][i].place_forget()
-                i = 1
-                for i in range(3):
-                    optDropDowns[i-1].place_forget()
-                for i in optCheckSub:
-                    i.place_forget()
-                optSubmit.place_forget()
+                remove_var_options()
                 #Display success text
                 inputSuccess.config(text='Success')
                 inputSuccess.place(x=int(screenWidth*0.9), y=430+(25*len(optCheckBoxes[0])))
@@ -371,16 +383,7 @@ def setup_test():
         global optArray
         #Reset the options section to default layout
         remove_temp_labels()
-        optSubmit.place_forget()
-        for i in optCheckSub:
-            i.place_forget()
-        for i in range(len(optCheckBoxes[0])):
-            for y in range(2):
-                optCheckBoxesVar[y][i].set(0)
-                optCheckBoxes[y][i].place_forget()
-        i = 1
-        for i in range(3):
-            optDropDowns[i-1].place_forget()
+        remove_var_options()
         #Store user input into variables
         url = inputArray[0][0].get("1.0","end")
         getT = inputArray[1][0].get("1.0","end")
@@ -393,7 +396,7 @@ def setup_test():
         if (getT.count('=') == 0 or (getT.count('=') >= 1 and getT.count('=') == (getT.count('&')+1))) == False:
             errorText += "Invalid Get Provided, the format should be name=&nametwo=. "
         #Validate post
-        if (post.count('=') == 1 and post.count('&') == 0 or (post.count('=') >= 2 and post.count('&') >= 1 and post.count('=') == (post.count('&')+1))) == False:
+        if (post.count('=') == 1 and post.count('&') == 0 or (post.count('=') >= 2 and post.count('=') == (post.count('&')+1)) or post.count('=') == 0) == False:
             errorText += "Invalid Post Provided, the format should be name=&nametwo=. "
         #Save the data if the errorText varaiable is empty, else output an error
         if errorText == '':
@@ -461,6 +464,7 @@ def setup_test():
                     optSubmit.place(x=int(screenWidth*0.9), y=int(400+(25*len(optCheckBoxes[0]))))
                     optSubmit.config(command=lambda:validate_current_test())
         if errorText != '':
+            #Display the error text
             inputError.config(text=errorText)
             inputError.place(x=25, y=350)
 
@@ -491,6 +495,7 @@ def settings_menu():
         inputSuccess.place_forget()
         cookieInp = inputCookie.get("1.0", "end")
         errorText = ''
+        #Validate the input provided
         if cookieInp.count('\n') > 1:
             errorText += 'Please only use a single line for the cookie. '
         elif cookieInp.find('=') == -1:
@@ -498,11 +503,13 @@ def settings_menu():
         elif cookieInp.find(';') == -1:
             errorText += 'Missing the character ;'
         if errorText == '':
+            #Output success text and add the cookie to the current cookie label
             cookie = cookieInp.replace('\n','')
             inputSuccess.config(text='Success')
             inputSuccess.place(x=int((screenWidth/2)+45), y=int((screenHeight/4)+95))
             labelCurrentCookie.config(text="Current Cookie: "+cookie)
         elif errorText != '':
+            #Output error message text
             inputError.config(text=errorText)
             inputError.place(x=int((screenWidth/2)+45), y=int((screenHeight/4)+95))
 
